@@ -74,10 +74,10 @@ loop:
 			if ok == false {
 				t.Fatal("continuous error")
 			}
-			if change.Seq == 1 && change.Id != "john" {
+			if change.Id != "john" {
 				t.Fatal("continuous error")
 			}
-			if change.Seq == 2 && change.Id != "steve" {
+			if change.Id != "steve" {
 				t.Fatal("continuous error")
 			}
 		case err := <-errors:
