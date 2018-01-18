@@ -3,6 +3,8 @@
 //
 // 	follow.Url = "http://127.0.0.1:5984/"
 // 	follow.Database = "_users"
+//  follow.User = "testuser"
+//  follow.Pass = "password"
 //
 // 	params := follow.QueryParameters{
 // 		Limit: 10,
@@ -20,11 +22,15 @@ import (
 	"fmt"
 	"github.com/google/go-querystring/query"
 	"net/http"
+	"time"
+	"net"
 )
 
 var (
 	Url      = "http://127.0.0.1:5984/"
 	Database = "test"
+	User     = ""
+	Pass     = ""
 )
 
 type QueryParameters struct {
@@ -53,7 +59,7 @@ type Response struct {
 type Result struct {
 	Changes []Rev  `json:"changes,omitempty"`
 	Id      string `json:"id,omitempty"`
-	Seq     int    `json:"seq,omitempty"`
+	Seq     string `json:"seq,omitempty"`
 	Deleted bool   `json:"deleted,omitempty"`
 }
 
@@ -67,8 +73,26 @@ func Changes(params QueryParameters) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+
 	url := fmt.Sprintf("%s%s/_changes?%s", Url, Database, q.Encode())
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.SetBasicAuth(User, Pass)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +114,19 @@ func Continuous(params QueryParameters) (<-chan *Result, <-chan error) {
 
 	// create channels
 	result := make(chan *Result)
-	e := make(chan error)
+	e := make(chan error, 1)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
 
 	url := fmt.Sprintf("%s%s/_changes?%s", Url, Database, q.Encode())
 	req, err := http.NewRequest("GET", url, nil)
@@ -98,7 +134,7 @@ func Continuous(params QueryParameters) (<-chan *Result, <-chan error) {
 		e <- err
 		return nil, e
 	}
-	client := &http.Client{}
+	req.SetBasicAuth(User, Pass)
 	res, err := client.Do(req)
 	if err != nil {
 		e <- err

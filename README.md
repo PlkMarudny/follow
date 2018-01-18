@@ -19,6 +19,8 @@ func main() {
   // set CouchDB url and database name
   follow.Url = "http://127.0.0.1:5984/"
   follow.Database = "_users"
+  follow.User = "user"
+  follow.Pass = "password"
 
   // set query parameters
   params := follow.QueryParameters{
